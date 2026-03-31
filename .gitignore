@@ -1,6 +1,9 @@
-node_modules/
-config.env
+.automaker/
+.claude/
 *.log
 bun.lock
 bun.lockb
+CLAUDE.md
+config.env
+node_modules/
 package-lock.json
