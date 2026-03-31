@@ -1,0 +1,367 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/config.env"
+CONFIG_TEMPLATE_FILE="${SCRIPT_DIR}/config.env.example"
+
+if [[ ! -f "${CONFIG_FILE}" ]]; then
+  if [[ -f "${CONFIG_TEMPLATE_FILE}" ]]; then
+    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
+    echo "Copy config.env.example to config.env and update it for this host." >&2
+  else
+    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
+  fi
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${CONFIG_FILE}"
+
+if [[ -z "${DOCKER_ROOT:-}" ]]; then
+  DOCKER_ROOT="/opt/docker"
+fi
+
+log() {
+  echo
+  echo "==> $*"
+}
+
+die() {
+  echo
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+require_root() {
+  if [[ "${EUID}" -ne 0 ]]; then
+    die "Please run as root: sudo bash $0"
+  fi
+}
+
+check_docker() {
+  command -v docker >/dev/null 2>&1 || die "Docker is not installed."
+  docker version >/dev/null 2>&1 || die "Docker daemon is not available."
+}
+
+check_directories() {
+  [[ -d "${DOCKER_ROOT}" ]] || die "${DOCKER_ROOT} does not exist."
+}
+
+write_caddyfile() {
+  log "Writing Caddyfile"
+  cat > "${DOCKER_ROOT}/appdata/caddy/Caddyfile" <<CADDYFILE
+{
+  local_certs
+}
+
+(security_headers) {
+  header {
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "SAMEORIGIN"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    -Server
+  }
+}
+
+http://${PORTAINER_DOMAIN}, http://${HOMEPAGE_DOMAIN} {
+  redir https://{host}{uri} permanent
+}
+
+https://${PORTAINER_DOMAIN} {
+  import security_headers
+  encode zstd gzip
+
+  reverse_proxy portainer:9443 {
+    transport http {
+      tls_insecure_skip_verify
+    }
+  }
+}
+
+https://${HOMEPAGE_DOMAIN} {
+  import security_headers
+  encode zstd gzip
+
+  reverse_proxy homepage:3000
+}
+CADDYFILE
+}
+
+write_homepage_files() {
+  log "Writing Homepage config"
+
+  cat > "${DOCKER_ROOT}/appdata/homepage/settings.yaml" <<'SETTINGS'
+title: Docker Host
+description: Core services dashboard
+theme: dark
+color: slate
+headerStyle: clean
+language: en
+layout:
+  Management:
+    style: row
+    columns: 2
+  System:
+    style: row
+    columns: 2
+SETTINGS
+
+  cat > "${DOCKER_ROOT}/appdata/homepage/widgets.yaml" <<'WIDGETS'
+- resources:
+    cpu: true
+    memory: true
+    disk: /
+    cputemp: false
+
+- search:
+    provider: duckduckgo
+    target: _blank
+
+- datetime:
+    text_size: xl
+    format:
+      timeStyle: short
+      hourCycle: h23
+      dateStyle: short
+WIDGETS
+
+  cat > "${DOCKER_ROOT}/appdata/homepage/services.yaml" <<SERVICES
+- Management:
+    - Portainer:
+        href: https://${PORTAINER_DOMAIN}
+        description: Docker management UI
+        icon: portainer.png
+        siteMonitor: https://${PORTAINER_DOMAIN}
+
+- System:
+    - Homepage:
+        href: https://${HOMEPAGE_DOMAIN}
+        description: Main dashboard
+        icon: homepage.png
+        siteMonitor: https://${HOMEPAGE_DOMAIN}
+SERVICES
+
+  cat > "${DOCKER_ROOT}/appdata/homepage/bookmarks.yaml" <<'BOOKMARKS'
+- Admin:
+    - Debian Docs:
+        - href: https://www.debian.org/doc/
+    - Docker Docs:
+        - href: https://docs.docker.com/
+    - Portainer Docs:
+        - href: https://docs.portainer.io/
+    - Caddy Docs:
+        - href: https://caddyserver.com/docs/
+
+- Network:
+    - Tailscale Admin:
+        - href: https://login.tailscale.com/admin
+BOOKMARKS
+}
+
+write_compose_file() {
+  log "Writing compose.yaml"
+
+  local watchtower_service=""
+  local portainer_watchtower_label=""
+  local homepage_watchtower_label=""
+  local caddy_watchtower_label='      - com.centurylinklabs.watchtower.enable=false'
+
+  if [[ "${ENABLE_WATCHTOWER}" == "true" ]]; then
+    portainer_watchtower_label='      - com.centurylinklabs.watchtower.enable=true'
+    homepage_watchtower_label='      - com.centurylinklabs.watchtower.enable=true'
+
+    watchtower_service=$(cat <<WATCHTOWER
+
+  watchtower:
+    image: ${WATCHTOWER_IMAGE}
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_POLL_INTERVAL: "21600"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LOG_LEVEL: "info"
+      WATCHTOWER_ROLLING_RESTART: "true"
+WATCHTOWER
+)
+  fi
+
+  cat > "${DOCKER_ROOT}/compose/core/compose.yaml" <<COMPOSE
+services:
+  portainer:
+    image: ${PORTAINER_IMAGE}
+    container_name: portainer
+    restart: unless-stopped
+    expose:
+      - "9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_ROOT}/appdata/portainer:/data
+    labels:
+${portainer_watchtower_label}
+      - homepage.group=Management
+      - homepage.name=Portainer
+      - homepage.icon=portainer.png
+      - homepage.href=https://${PORTAINER_DOMAIN}
+      - homepage.description=Docker management UI
+
+  homepage:
+    image: ${HOMEPAGE_IMAGE}
+    container_name: homepage
+    restart: unless-stopped
+    expose:
+      - "3000"
+    volumes:
+      - ${DOCKER_ROOT}/appdata/homepage:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "*"
+    labels:
+${homepage_watchtower_label}
+      - homepage.group=System
+      - homepage.name=Homepage
+      - homepage.icon=homepage.png
+      - homepage.href=https://${HOMEPAGE_DOMAIN}
+      - homepage.description=Main dashboard
+${watchtower_service}
+  caddy:
+    image: ${CADDY_IMAGE}
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${DOCKER_ROOT}/appdata/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${DOCKER_ROOT}/appdata/caddy/data:/data
+      - ${DOCKER_ROOT}/appdata/caddy/config:/config
+    labels:
+${caddy_watchtower_label}
+COMPOSE
+}
+
+write_backup_scripts() {
+  log "Writing backup scripts"
+
+  cat > "${DOCKER_ROOT}/scripts/backup-docker.sh" <<BACKUPSAFE
+#!/usr/bin/env bash
+set -euo pipefail
+
+STACK_DIR="${DOCKER_ROOT}/compose/core"
+BACKUP_ROOT="${DOCKER_ROOT}/shared/backups"
+TIMESTAMP="\$(date +%Y-%m-%d_%H-%M-%S)"
+HOSTNAME_SHORT="\$(hostname -s)"
+ARCHIVE_NAME="\${HOSTNAME_SHORT}_docker_backup_\${TIMESTAMP}.tar.gz"
+ARCHIVE_PATH="\${BACKUP_ROOT}/\${ARCHIVE_NAME}"
+RETAIN_DAYS="${BACKUP_RETAIN_DAYS}"
+
+mkdir -p "\${BACKUP_ROOT}"
+
+stack_stopped="false"
+
+restore_stack() {
+  if [[ "\${stack_stopped}" == "true" ]]; then
+    echo "[backup] Restarting stack..."
+    docker compose -f "\${STACK_DIR}/compose.yaml" start || true
+  fi
+}
+
+trap restore_stack EXIT
+
+echo "[backup] Stopping stack..."
+docker compose -f "\${STACK_DIR}/compose.yaml" stop || true
+stack_stopped="true"
+
+echo "[backup] Creating archive..."
+tar \\
+  --exclude="\${BACKUP_ROOT}" \\
+  -czf "\${ARCHIVE_PATH}" \\
+  -C "\$(dirname "${DOCKER_ROOT}")" "\$(basename "${DOCKER_ROOT}")"
+
+ARCHIVE_SIZE="\$(du -sh "\${ARCHIVE_PATH}" | cut -f1)"
+echo "[backup] Archive created: \${ARCHIVE_PATH} (\${ARCHIVE_SIZE})"
+
+echo "[backup] Pruning archives older than \${RETAIN_DAYS} days..."
+find "\${BACKUP_ROOT}" -type f -name "*.tar.gz" -mtime +\${RETAIN_DAYS} -delete
+
+echo "[backup] Done."
+BACKUPSAFE
+
+  chmod +x "${DOCKER_ROOT}/scripts/backup-docker.sh"
+
+  cat > "${DOCKER_ROOT}/scripts/backup-docker-live.sh" <<BACKUPLIVE
+#!/usr/bin/env bash
+set -euo pipefail
+
+BACKUP_ROOT="${DOCKER_ROOT}/shared/backups"
+TIMESTAMP="\$(date +%Y-%m-%d_%H-%M-%S)"
+HOSTNAME_SHORT="\$(hostname -s)"
+ARCHIVE_NAME="\${HOSTNAME_SHORT}_docker_backup_live_\${TIMESTAMP}.tar.gz"
+ARCHIVE_PATH="\${BACKUP_ROOT}/\${ARCHIVE_NAME}"
+RETAIN_DAYS="${BACKUP_RETAIN_DAYS}"
+
+mkdir -p "\${BACKUP_ROOT}"
+
+echo "[backup-live] Creating archive without stopping containers..."
+tar \\
+  --exclude="\${BACKUP_ROOT}" \\
+  -czf "\${ARCHIVE_PATH}" \\
+  -C "\$(dirname "${DOCKER_ROOT}")" "\$(basename "${DOCKER_ROOT}")"
+
+ARCHIVE_SIZE="\$(du -sh "\${ARCHIVE_PATH}" | cut -f1)"
+echo "[backup-live] Archive created: \${ARCHIVE_PATH} (\${ARCHIVE_SIZE})"
+
+echo "[backup-live] Pruning archives older than \${RETAIN_DAYS} days..."
+find "\${BACKUP_ROOT}" -type f -name "*.tar.gz" -mtime +\${RETAIN_DAYS} -delete
+
+echo "[backup-live] Done."
+BACKUPLIVE
+
+  chmod +x "${DOCKER_ROOT}/scripts/backup-docker-live.sh"
+}
+
+start_stack() {
+  log "Starting stack"
+  docker compose -f "${DOCKER_ROOT}/compose/core/compose.yaml" up -d
+}
+
+print_summary() {
+  cat <<SUMMARY
+
+========================================
+Config write complete
+========================================
+
+Set local DNS or hosts entries:
+  ${HOST_IP} ${PORTAINER_DOMAIN} ${HOMEPAGE_DOMAIN}
+
+URLs:
+  https://${PORTAINER_DOMAIN}
+  https://${HOMEPAGE_DOMAIN}
+
+Caddy root CA:
+  ${DOCKER_ROOT}/appdata/caddy/data/caddy/pki/authorities/local/root.crt
+
+Suggested cron:
+  15 3 * * * ${DOCKER_ROOT}/scripts/backup-docker.sh >> ${DOCKER_ROOT}/shared/backups/backup.log 2>&1
+
+SUMMARY
+}
+
+main() {
+  require_root
+  check_docker
+  check_directories
+  write_caddyfile
+  write_homepage_files
+  write_compose_file
+  write_backup_scripts
+  start_stack
+  print_summary
+}
+
+main "$@"

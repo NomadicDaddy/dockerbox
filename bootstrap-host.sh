@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/config.env"
+CONFIG_TEMPLATE_FILE="${SCRIPT_DIR}/config.env.example"
+
+if [[ ! -f "${CONFIG_FILE}" ]]; then
+  if [[ -f "${CONFIG_TEMPLATE_FILE}" ]]; then
+    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
+    echo "Copy config.env.example to config.env and update it for this host." >&2
+  else
+    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
+  fi
+  exit 1
+fi
+
+# shellcheck disable=SC1090
+source "${CONFIG_FILE}"
+
+if [[ -z "${PRIMARY_USER}" && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+  PRIMARY_USER="${SUDO_USER}"
+fi
+
+if [[ -z "${DOCKER_ROOT:-}" ]]; then
+  DOCKER_ROOT="/opt/docker"
+fi
+
+log() {
+  echo
+  echo "==> $*"
+}
+
+warn() {
+  echo
+  echo "WARNING: $*" >&2
+}
+
+die() {
+  echo
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+require_root() {
+  if [[ "${EUID}" -ne 0 ]]; then
+    die "Please run as root: sudo bash $0"
+  fi
+}
+
+detect_debian() {
+  if [[ ! -f /etc/os-release ]]; then
+    die "Cannot detect OS."
+  fi
+
+  . /etc/os-release
+
+  if [[ "${ID:-}" != "debian" ]]; then
+    die "This script currently supports Debian only."
+  fi
+}
+
+check_primary_user() {
+  if [[ -z "${PRIMARY_USER}" ]]; then
+    warn "PRIMARY_USER is empty. Docker group membership will not be set."
+    return
+  fi
+
+  if ! id "${PRIMARY_USER}" >/dev/null 2>&1; then
+    die "PRIMARY_USER '${PRIMARY_USER}' does not exist."
+  fi
+}
+
+set_hostname_if_requested() {
+  if [[ -n "${HOSTNAME_TO_SET}" ]]; then
+    log "Setting hostname to ${HOSTNAME_TO_SET}"
+    hostnamectl set-hostname "${HOSTNAME_TO_SET}"
+  fi
+}
+
+install_base_packages() {
+  log "Installing base packages"
+  apt update
+  apt upgrade -y
+  apt install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    ufw \
+    unattended-upgrades \
+    tar \
+    nano \
+    jq \
+    openssh-server
+}
+
+set_timezone() {
+  log "Setting timezone to ${TZ}"
+  timedatectl set-timezone "${TZ}" || true
+}
+
+install_docker() {
+  log "Installing Docker"
+  install -m 0755 -d /etc/apt/keyrings
+
+  if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
+    curl -fsSL https://download.docker.com/linux/debian/gpg | \
+      gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+  fi
+
+  . /etc/os-release
+
+  cat > /etc/apt/sources.list.d/docker.list <<DOCKERLIST
+deb [arch=$(dpkg --print-architecture) \
+signed-by=/etc/apt/keyrings/docker.gpg] \
+https://download.docker.com/linux/debian ${VERSION_CODENAME} stable
+DOCKERLIST
+
+  apt update
+  apt install -y \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-compose-plugin
+
+  systemctl enable --now docker
+}
+
+configure_docker_daemon() {
+  log "Configuring Docker daemon"
+  install -m 0755 -d /etc/docker
+
+  cat > /etc/docker/daemon.json <<'DOCKERDAEMON'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "userland-proxy": false
+}
+DOCKERDAEMON
+
+  systemctl restart docker
+}
+
+add_user_to_docker_group() {
+  if [[ -n "${PRIMARY_USER}" ]]; then
+    log "Adding ${PRIMARY_USER} to docker group"
+    usermod -aG docker "${PRIMARY_USER}"
+  fi
+}
+
+configure_unattended_upgrades() {
+  if [[ "${ENABLE_UNATTENDED_UPGRADES}" != "true" ]]; then
+    return
+  fi
+
+  log "Enabling unattended upgrades"
+  dpkg-reconfigure -f noninteractive unattended-upgrades || true
+}
+
+install_tailscale() {
+  if [[ "${INSTALL_TAILSCALE}" != "true" ]]; then
+    return
+  fi
+
+  log "Installing Tailscale"
+  curl -fsSL https://tailscale.com/install.sh | sh
+}
+
+configure_ufw() {
+  if [[ "${ENABLE_UFW}" != "true" ]]; then
+    return
+  fi
+
+  log "Configuring UFW"
+  ufw default deny incoming
+  ufw default allow outgoing
+  ufw allow 22/tcp
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+  ufw allow in on tailscale0 || true
+  ufw --force enable
+  ufw status verbose || true
+}
+
+harden_ssh_if_requested() {
+  if [[ "${HARDEN_SSH}" != "true" ]]; then
+    return
+  fi
+
+  warn "Only enable HARDEN_SSH if SSH key auth is confirmed working."
+  log "Hardening SSH"
+
+  local sshd_config="/etc/ssh/sshd_config"
+  cp "${sshd_config}" "${sshd_config}.bak.$(date +%Y%m%d%H%M%S)"
+
+  sed -i 's/^#\?PermitRootLogin .*/PermitRootLogin no/' \
+    "${sshd_config}" || true
+  sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' \
+    "${sshd_config}" || true
+  sed -i 's/^#\?PubkeyAuthentication .*/PubkeyAuthentication yes/' \
+    "${sshd_config}" || true
+
+  grep -q '^PermitRootLogin no' "${sshd_config}" || \
+    echo 'PermitRootLogin no' >> "${sshd_config}"
+  grep -q '^PasswordAuthentication no' "${sshd_config}" || \
+    echo 'PasswordAuthentication no' >> "${sshd_config}"
+  grep -q '^PubkeyAuthentication yes' "${sshd_config}" || \
+    echo 'PubkeyAuthentication yes' >> "${sshd_config}"
+
+  systemctl restart ssh
+}
+
+create_directories() {
+  log "Creating directory structure"
+  mkdir -p "${DOCKER_ROOT}/compose/core"
+  mkdir -p "${DOCKER_ROOT}/appdata/portainer"
+  mkdir -p "${DOCKER_ROOT}/appdata/homepage"
+  mkdir -p "${DOCKER_ROOT}/appdata/caddy/data"
+  mkdir -p "${DOCKER_ROOT}/appdata/caddy/config"
+  mkdir -p "${DOCKER_ROOT}/shared/backups"
+  mkdir -p "${DOCKER_ROOT}/shared/downloads"
+  mkdir -p "${DOCKER_ROOT}/shared/media"
+  mkdir -p "${DOCKER_ROOT}/scripts"
+  mkdir -p "${DOCKER_ROOT}/stacks"
+
+  if [[ -n "${PRIMARY_USER}" ]]; then
+    chown -R "${PRIMARY_USER}:${PRIMARY_USER}" "${DOCKER_ROOT}"
+  fi
+}
+
+print_summary() {
+  cat <<SUMMARY
+
+========================================
+Host bootstrap complete
+========================================
+
+Next:
+  1. If Tailscale was installed, run:
+     sudo tailscale up
+
+  2. Log out and back in so '${PRIMARY_USER}' gets docker group access.
+
+  3. Run the config script:
+     sudo bash ./write-configs.sh
+
+Docker root:
+  ${DOCKER_ROOT}
+
+SUMMARY
+}
+
+main() {
+  require_root
+  detect_debian
+  check_primary_user
+  set_hostname_if_requested
+  install_base_packages
+  set_timezone
+  install_docker
+  configure_docker_daemon
+  add_user_to_docker_group
+  configure_unattended_upgrades
+  install_tailscale
+  configure_ufw
+  harden_ssh_if_requested
+  create_directories
+  print_summary
+}
+
+main "$@"

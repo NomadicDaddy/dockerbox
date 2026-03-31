@@ -1,0 +1,136 @@
+# dockerbox
+
+`dockerbox` is a Debian-focused bootstrap repo for bringing up a lightweight Docker host with:
+
+- Docker Engine
+- Portainer
+- Homepage
+- Caddy
+- optional Watchtower
+- optional Tailscale
+- UFW
+- backup and restore scripts
+
+The repo is designed to be safe to publish:
+
+- commit `config.env.example`
+- keep real `config.env` local and ignored
+- generate the runtime stack under `DOCKER_ROOT` (`/opt/docker` by default)
+
+## Fresh machine quick start
+
+On a fresh Debian machine:
+
+```bash
+apt update && apt install -y curl
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/NomadicDaddy/dockerbox/main/install.sh)
+```
+
+Pass `REPO_SLUG=yourname/dockerbox` to override the default repo slug.
+
+## Interactive install
+
+By default, `install.sh` prompts for:
+
+- host IP
+- hostname
+- primary user
+- timezone
+- local domains
+- Tailscale on/off
+- UFW on/off
+- unattended upgrades on/off
+- SSH hardening on/off
+- Watchtower on/off
+
+## Noninteractive install
+
+You can also pass values via environment variables:
+
+```bash
+apt update && apt install -y curl
+REPO_SLUG="NomadicDaddy/dockerbox" \
+NONINTERACTIVE=1 \
+HOST_IP="192.168.1.15" \
+PRIMARY_USER="youruser" \
+PORTAINER_DOMAIN="portainer.home" \
+HOMEPAGE_DOMAIN="dash.home" \
+INSTALL_TAILSCALE="true" \
+ENABLE_WATCHTOWER="true" \
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/NomadicDaddy/dockerbox/main/install.sh)
+```
+
+## Existing local/manual flow
+
+If you already have the repo locally:
+
+```bash
+cp config.env.example config.env
+nano config.env
+sudo bash bootstrap-host.sh
+sudo tailscale up   # if enabled
+sudo bash write-configs.sh
+```
+
+## Files
+
+- `config.env.example` - template config
+- `bootstrap-host.sh` - host preparation
+- `write-configs.sh` - writes generated configs, compose stack, and backup scripts
+- `restore-from-backup.sh` - restores `DOCKER_ROOT` from a backup archive
+- `install.sh` - public bootstrap installer
+- `.gitignore` - ignores local config and logs
+
+## Runtime layout
+
+By default the deployed system is written under `/opt/docker`:
+
+- `compose/core/compose.yaml`
+- `appdata/portainer`
+- `appdata/homepage`
+- `appdata/caddy`
+- `scripts/backup-docker.sh`
+- `scripts/backup-docker-live.sh`
+- `shared/backups`
+
+## Local DNS / hosts
+
+After install, point these names at your Docker host:
+
+- `portainer.home`
+- `dash.home`
+
+Example hosts entry:
+
+```text
+192.168.1.15 portainer.home dash.home
+```
+
+## Trust Caddy local CA
+
+Import this CA cert on client devices:
+
+```text
+/opt/docker/appdata/caddy/data/caddy/pki/authorities/local/root.crt
+```
+
+## Restore
+
+After bootstrapping a fresh Debian host again:
+
+```bash
+cp config.env.example config.env
+nano config.env
+sudo bash restore-from-backup.sh /path/to/backup.tar.gz
+```
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
+
+## Notes
+
+- Do not put secrets in this repo.
+- `config.env` is intentionally gitignored.
+- Only Caddy publishes host ports; Portainer and Homepage stay behind the reverse proxy.
+- Do not port-forward 80/443 unless you intentionally want public exposure.
