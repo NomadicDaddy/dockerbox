@@ -8,6 +8,13 @@ DEFAULT_INSTALL_HOME="$(eval echo "~${DEFAULT_INSTALL_USER}")"
 INSTALL_DIR="${INSTALL_DIR:-${DEFAULT_INSTALL_HOME}/dockerbox}"
 ARCHIVE_URL="https://codeload.github.com/${REPO_SLUG}/tar.gz/refs/heads/${BRANCH}"
 
+# Read version from VERSION file if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOCKERBOX_VERSION="unknown"
+if [[ -f "${SCRIPT_DIR}/VERSION" ]]; then
+  DOCKERBOX_VERSION="$(tr -d '[:space:]' < "${SCRIPT_DIR}/VERSION")"
+fi
+
 log() {
   echo
   echo "==> $*"
@@ -51,6 +58,7 @@ and runs bootstrap + write-configs on a fresh Debian machine.
 
 Options:
   --help              Show this help message and exit
+  --version           Print version and exit
 
 Environment variables (non-interactive mode):
   NONINTERACTIVE=1    Skip interactive prompts (all values must be set)
@@ -272,6 +280,7 @@ main() {
   for arg in "$@"; do
     case "${arg}" in
       --help) show_help; exit 0 ;;
+      --version) echo "DockerBox v${DOCKERBOX_VERSION}"; exit 0 ;;
     esac
   done
 
