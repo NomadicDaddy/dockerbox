@@ -56,6 +56,14 @@ check_docker() {
   docker version >/dev/null 2>&1 || die "Docker daemon is not available."
 }
 
+stop_stack() {
+  local compose_file="${DOCKER_ROOT}/compose/core/compose.yaml"
+  if [[ -f "${compose_file}" ]]; then
+    log "Stopping existing stack before restore"
+    docker compose -f "${compose_file}" stop || true
+  fi
+}
+
 restore_archive() {
   log "Restoring archive ${BACKUP_ARCHIVE}"
   mkdir -p "$(dirname "${DOCKER_ROOT}")"
@@ -96,6 +104,7 @@ main() {
   require_root
   check_args
   check_docker
+  stop_stack
   restore_archive
   start_stack
   print_summary

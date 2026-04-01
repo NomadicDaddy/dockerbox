@@ -134,3 +134,14 @@ MIT License. See [LICENSE](LICENSE).
 - `config.env` is intentionally gitignored.
 - Only Caddy publishes host ports; Portainer and Homepage stay behind the reverse proxy.
 - Do not port-forward 80/443 unless you intentionally want public exposure.
+
+### Watchtower (deprecated)
+
+Watchtower ([containrrr/watchtower](https://github.com/containrrr/watchtower)) was archived on December 17, 2025 and is no longer maintained. It is still available as an optional service in DockerBox but is **disabled by default**.
+
+If you enable Watchtower (`ENABLE_WATCHTOWER=true`):
+
+- The image is pinned to `containrrr/watchtower:1.7.1` (the last release)
+- It will never receive security patches or bug fixes
+- It has read-write access to the Docker socket
+- Consider manual updates instead: `docker compose -f /opt/docker/compose/core/compose.yaml pull && docker compose -f /opt/docker/compose/core/compose.yaml up -d`

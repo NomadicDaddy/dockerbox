@@ -164,13 +164,23 @@ write_compose_file() {
   log "Writing compose.yaml"
 
   local watchtower_service=""
-  local portainer_watchtower_label=""
-  local homepage_watchtower_label=""
-  local caddy_watchtower_label='      - com.centurylinklabs.watchtower.enable=false'
+  local portainer_labels="      - homepage.group=Management
+      - homepage.name=Portainer
+      - homepage.icon=portainer.png
+      - homepage.href=https://${PORTAINER_DOMAIN}
+      - homepage.description=Docker management UI"
+  local homepage_labels="      - homepage.group=System
+      - homepage.name=Homepage
+      - homepage.icon=homepage.png
+      - homepage.href=https://${HOMEPAGE_DOMAIN}
+      - homepage.description=Main dashboard"
+  local caddy_labels='      - com.centurylinklabs.watchtower.enable=false'
 
   if [[ "${ENABLE_WATCHTOWER}" == "true" ]]; then
-    portainer_watchtower_label='      - com.centurylinklabs.watchtower.enable=true'
-    homepage_watchtower_label='      - com.centurylinklabs.watchtower.enable=true'
+    portainer_labels="      - com.centurylinklabs.watchtower.enable=true
+${portainer_labels}"
+    homepage_labels="      - com.centurylinklabs.watchtower.enable=true
+${homepage_labels}"
 
     watchtower_service=$(cat <<WATCHTOWER
 
@@ -202,12 +212,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DOCKER_ROOT}/appdata/portainer:/data
     labels:
-${portainer_watchtower_label}
-      - homepage.group=Management
-      - homepage.name=Portainer
-      - homepage.icon=portainer.png
-      - homepage.href=https://${PORTAINER_DOMAIN}
-      - homepage.description=Docker management UI
+${portainer_labels}
 
   homepage:
     image: ${HOMEPAGE_IMAGE}
@@ -221,14 +226,8 @@ ${portainer_watchtower_label}
     environment:
       HOMEPAGE_ALLOWED_HOSTS: "*"
     labels:
-${homepage_watchtower_label}
-      - homepage.group=System
-      - homepage.name=Homepage
-      - homepage.icon=homepage.png
-      - homepage.href=https://${HOMEPAGE_DOMAIN}
-      - homepage.description=Main dashboard
-${watchtower_service}
-  caddy:
+${homepage_labels}
+${watchtower_service}  caddy:
     image: ${CADDY_IMAGE}
     container_name: caddy
     restart: unless-stopped
@@ -240,7 +239,7 @@ ${watchtower_service}
       - ${DOCKER_ROOT}/appdata/caddy/data:/data
       - ${DOCKER_ROOT}/appdata/caddy/config:/config
     labels:
-${caddy_watchtower_label}
+${caddy_labels}
 COMPOSE
 }
 

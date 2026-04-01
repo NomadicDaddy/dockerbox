@@ -66,6 +66,9 @@ download_repo() {
   mkdir -p "$(dirname "${INSTALL_DIR}")"
   rm -rf "${INSTALL_DIR}"
   mv "${extracted_dir}" "${INSTALL_DIR}"
+
+  rm -rf "${tmp_dir}"
+  trap - EXIT
 }
 
 ensure_config_file() {
@@ -132,7 +135,7 @@ interactive_config() {
   enable_ufw="$(prompt_yes_no "Enable UFW?" "true")"
   enable_unattended_upgrades="$(prompt_yes_no "Enable unattended upgrades?" "true")"
   harden_ssh="$(prompt_yes_no "Disable SSH password auth now?" "false")"
-  enable_watchtower="$(prompt_yes_no "Enable Watchtower?" "true")"
+  enable_watchtower="$(prompt_yes_no "Enable Watchtower (archived, unmaintained)?" "false")"
 
   cat > "${INSTALL_DIR}/config.env" <<EOF
 HOST_IP="${host_ip}"
@@ -155,7 +158,7 @@ BACKUP_RETAIN_DAYS="14"
 
 PORTAINER_IMAGE="portainer/portainer-ce:2"
 HOMEPAGE_IMAGE="ghcr.io/gethomepage/homepage:latest"
-WATCHTOWER_IMAGE="containrrr/watchtower:latest"
+WATCHTOWER_IMAGE="containrrr/watchtower:1.7.1"
 CADDY_IMAGE="caddy:2"
 EOF
 }
