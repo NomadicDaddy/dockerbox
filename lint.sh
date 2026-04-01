@@ -4,6 +4,32 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Check for --help
+for arg in "$@"; do
+  case "${arg}" in
+    --help)
+      cat <<'HELP'
+Usage: bash lint.sh [OPTIONS]
+
+Validates all shell scripts in the project using bash -n syntax checking.
+Also runs ShellCheck if available.
+
+Options:
+  --help              Show this help message and exit
+
+This script checks:
+  - All .sh files in the project root
+  - All .sh files in the lib/ directory
+  - ShellCheck static analysis (if shellcheck is installed)
+
+Examples:
+  bash lint.sh
+HELP
+      exit 0
+      ;;
+  esac
+done
+
 echo "Checking *.sh syntax..."
 for f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/lib/*.sh; do
     if [[ -f "$f" ]]; then

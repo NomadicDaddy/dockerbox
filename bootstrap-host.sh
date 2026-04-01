@@ -6,6 +6,40 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/common.sh"
 
+# Check for --help before requiring config
+for arg in "$@"; do
+  case "${arg}" in
+    --help)
+      cat <<'HELP'
+Usage: sudo bash bootstrap-host.sh [OPTIONS]
+
+Host preparation: installs Docker, configures daemon, sets timezone,
+creates directory structure under DOCKER_ROOT.
+
+Options:
+  --help              Show this help message and exit
+
+Configuration:
+  Reads config.env from the script directory. Required variables:
+    TZ                  Timezone (e.g., America/Chicago)
+
+  Optional variables:
+    HOSTNAME_TO_SET     Set system hostname (blank to skip)
+    PRIMARY_USER        User added to docker group
+    INSTALL_TAILSCALE   Install Tailscale VPN (true/false)
+    ENABLE_UFW          Configure UFW firewall (true/false)
+    ENABLE_UNATTENDED_UPGRADES  Enable auto security updates (true/false)
+    HARDEN_SSH          Disable SSH password auth (true/false)
+    DOCKER_ROOT         Docker data root (default: /opt/docker)
+
+Examples:
+  sudo bash bootstrap-host.sh
+HELP
+      exit 0
+      ;;
+  esac
+done
+
 source_config
 
 # Apply default guards for optional config variables

@@ -11,6 +11,38 @@ DRY_RUN="false"
 for arg in "$@"; do
   case "${arg}" in
     --dry-run) DRY_RUN="true" ;;
+    --help)
+      cat <<'HELP'
+Usage: sudo bash write-configs.sh [OPTIONS]
+
+Generates and writes all configuration files (Caddyfile, Homepage configs,
+Docker Compose file, backup scripts) and starts the Docker Compose stack.
+
+Options:
+  --dry-run           Generate config files without starting the stack
+  --help              Show this help message and exit
+
+Configuration:
+  Reads config.env from the script directory. Required variables:
+    HOST_IP             Host IP address
+    PORTAINER_DOMAIN    Portainer domain name
+    HOMEPAGE_DOMAIN     Homepage dashboard domain name
+    DOCKER_ROOT         Docker data root (default: /opt/docker)
+
+  Optional variables:
+    PORTAINER_IMAGE     Portainer Docker image (default: portainer/portainer-ce:2)
+    HOMEPAGE_IMAGE      Homepage Docker image (default: ghcr.io/gethomepage/homepage:latest)
+    WATCHTOWER_IMAGE    Watchtower Docker image (default: containrrr/watchtower:1.7.1)
+    CADDY_IMAGE         Caddy Docker image (default: caddy:2)
+    ENABLE_WATCHTOWER   Enable Watchtower service (true/false)
+    BACKUP_RETAIN_DAYS  Backup retention period in days (default: 14)
+
+Examples:
+  sudo bash write-configs.sh
+  sudo bash write-configs.sh --dry-run
+HELP
+      exit 0
+      ;;
     *) die "Unknown argument: ${arg}" ;;
   esac
 done

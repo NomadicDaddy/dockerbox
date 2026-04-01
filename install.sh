@@ -42,6 +42,42 @@ detect_debian() {
   fi
 }
 
+show_help() {
+  cat <<'HELP'
+Usage: sudo bash install.sh [OPTIONS]
+
+DockerBox public bootstrap installer. Downloads the repo, creates config,
+and runs bootstrap + write-configs on a fresh Debian machine.
+
+Options:
+  --help              Show this help message and exit
+
+Environment variables (non-interactive mode):
+  NONINTERACTIVE=1    Skip interactive prompts (all values must be set)
+  REPO_SLUG           GitHub repo slug (default: NomadicDaddy/dockerbox)
+  BRANCH              Git branch (default: main)
+  INSTALL_DIR         Local install directory (default: ~/dockerbox)
+  HOST_IP             Host IP address
+  PORTAINER_DOMAIN    Portainer domain name
+  HOMEPAGE_DOMAIN     Homepage dashboard domain name
+  PRIMARY_USER        Primary user for docker group
+  TZ                  Timezone (e.g., America/Chicago)
+  INSTALL_TAILSCALE   Install Tailscale (true/false)
+  ENABLE_UFW          Enable UFW firewall (true/false)
+  ENABLE_UNATTENDED_UPGRADES  Enable auto security updates (true/false)
+  HARDEN_SSH          Disable SSH password auth (true/false)
+  ENABLE_WATCHTOWER   Enable Watchtower container updates (true/false)
+
+Examples:
+  # Interactive install
+  sudo bash install.sh
+
+  # Non-interactive install
+  NONINTERACTIVE=1 HOST_IP="192.168.1.15" PORTAINER_DOMAIN="portainer.home" \
+    HOMEPAGE_DOMAIN="dash.home" PRIMARY_USER="user" sudo bash install.sh
+HELP
+}
+
 install_minimum_tools() {
   log "Installing minimum tools"
   apt update
@@ -233,6 +269,12 @@ EOF
 }
 
 main() {
+  for arg in "$@"; do
+    case "${arg}" in
+      --help) show_help; exit 0 ;;
+    esac
+  done
+
   require_root
   detect_debian
   install_minimum_tools

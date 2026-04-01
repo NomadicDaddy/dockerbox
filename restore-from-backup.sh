@@ -16,6 +16,40 @@ DOCKER_ROOT="${DOCKER_ROOT:-/opt/docker}"
 
 BACKUP_ARCHIVE="${1:-}"
 
+# Check for --help
+if [[ "${BACKUP_ARCHIVE}" == "--help" ]]; then
+  cat <<'HELP'
+Usage: sudo bash restore-from-backup.sh /path/to/backup.tar.gz
+
+Restores DOCKER_ROOT from a tar.gz backup archive and starts the
+Docker Compose stack.
+
+Arguments:
+  /path/to/backup.tar.gz   Path to the backup archive to restore
+
+Options:
+  --help                   Show this help message and exit
+
+Configuration:
+  Reads config.env from the script directory. Required variables:
+    HOST_IP             Host IP address (for summary output)
+    PORTAINER_DOMAIN    Portainer domain name
+    HOMEPAGE_DOMAIN     Homepage dashboard domain name
+    DOCKER_ROOT         Docker data root (default: /opt/docker)
+
+The script will:
+  1. Verify the backup archive exists
+  2. Check SHA-256 checksum if .sha256 file is present
+  3. Stop the running Docker Compose stack
+  4. Extract the archive to restore DOCKER_ROOT
+  5. Start the restored Docker Compose stack
+
+Examples:
+  sudo bash restore-from-backup.sh /opt/docker/shared/backups/host_backup.tar.gz
+HELP
+  exit 0
+fi
+
 check_args() {
   if [[ -z "${BACKUP_ARCHIVE}" ]]; then
     die "Usage: sudo bash $0 /path/to/backup.tar.gz"
