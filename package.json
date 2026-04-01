@@ -26,10 +26,11 @@
 		"url": "https://github.com/NomadicDaddy/dockerbox.git"
 	},
 	"scripts": {
-		"format": "bun update --latest && bunx prettier --write .",
-		"format:check": "bun update --latest && bunx prettier --check .",
+		"format": "bunx prettier --write .",
+		"format:check": "bunx prettier --check .",
 		"lint": "bash ./lint.sh",
-		"smoke:qc": "bun run lint && bun run format"
+		"smoke:qc": "bun run lint && bun run format:check",
+		"update-deps": "bun update --latest"
 	},
 	"type": "module"
 }
