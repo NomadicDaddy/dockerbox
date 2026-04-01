@@ -6,6 +6,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/common.sh"
 
+# Parse flags
+DRY_RUN="false"
+for arg in "$@"; do
+  case "${arg}" in
+    --dry-run) DRY_RUN="true" ;;
+    *) die "Unknown argument: ${arg}" ;;
+  esac
+done
+
 source_config
 
 # Apply default guards for config variables
@@ -351,11 +360,40 @@ BACKUPLIVE
 }
 
 start_stack() {
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    log "Dry run: skipping stack start"
+    return
+  fi
+
   log "Starting stack"
   docker compose -f "${DOCKER_ROOT}/compose/core/compose.yaml" up -d
 }
 
 print_summary() {
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    cat <<DRYSUMMARY
+
+========================================
+Dry run complete — configs generated, stack NOT started
+========================================
+
+Generated files:
+  ${DOCKER_ROOT}/appdata/caddy/Caddyfile
+  ${DOCKER_ROOT}/appdata/homepage/settings.yaml
+  ${DOCKER_ROOT}/appdata/homepage/widgets.yaml
+  ${DOCKER_ROOT}/appdata/homepage/services.yaml
+  ${DOCKER_ROOT}/appdata/homepage/bookmarks.yaml
+  ${DOCKER_ROOT}/compose/core/compose.yaml
+  ${DOCKER_ROOT}/scripts/backup-docker.sh
+  ${DOCKER_ROOT}/scripts/backup-docker-live.sh
+
+Review the files above, then run without --dry-run to start the stack:
+  sudo bash ./write-configs.sh
+
+DRYSUMMARY
+    return
+  fi
+
   cat <<SUMMARY
 
 ========================================
@@ -383,7 +421,9 @@ SUMMARY
 
 main() {
   require_root
-  check_docker
+  if [[ "${DRY_RUN}" == "false" ]]; then
+    check_docker
+  fi
   check_directories
   write_caddyfile
   write_homepage_files

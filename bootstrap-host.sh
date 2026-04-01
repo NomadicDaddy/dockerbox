@@ -46,20 +46,23 @@ set_hostname_if_requested() {
 }
 
 install_base_packages() {
-  log "Installing base packages"
+  log "Installing base packages (skipping already-installed)"
   apt update
   apt upgrade -y
-  apt install -y \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release \
-    ufw \
-    unattended-upgrades \
-    tar \
-    nano \
-    jq \
-    openssh-server
+
+  local packages_to_install=()
+  local pkg
+  for pkg in ca-certificates curl gnupg lsb-release ufw unattended-upgrades tar nano jq openssh-server; do
+    if ! dpkg -s "${pkg}" >/dev/null 2>&1; then
+      packages_to_install+=("${pkg}")
+    fi
+  done
+
+  if [[ ${#packages_to_install[@]} -gt 0 ]]; then
+    apt install -y "${packages_to_install[@]}"
+  else
+    log "All base packages already installed"
+  fi
 }
 
 set_timezone() {
@@ -68,6 +71,11 @@ set_timezone() {
 }
 
 install_docker() {
+  if command -v docker >/dev/null 2>&1; then
+    log "Docker already installed ($(docker --version 2>/dev/null || echo 'unknown version')), skipping installation"
+    return
+  fi
+
   log "Installing Docker"
   install -m 0755 -d /etc/apt/keyrings
 
@@ -132,6 +140,11 @@ configure_unattended_upgrades() {
 
 install_tailscale() {
   if [[ "${INSTALL_TAILSCALE}" != "true" ]]; then
+    return
+  fi
+
+  if command -v tailscale >/dev/null 2>&1; then
+    log "Tailscale already installed ($(tailscale version 2>/dev/null | head -1 || echo 'unknown')), skipping"
     return
   fi
 
