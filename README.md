@@ -84,6 +84,7 @@ sudo bash init.sh
 - `bootstrap-host.sh` - host preparation
 - `write-configs.sh` - writes generated configs, compose stack, and backup scripts
 - `restore-from-backup.sh` - restores `DOCKER_ROOT` from a backup archive
+- `uninstall.sh` - stops stack and removes generated configs (optional: `--remove-docker`, `--remove-data`)
 - `init.sh` - local convenience script (copies config, prompts user, runs bootstrap + write-configs)
 - `install.sh` - public bootstrap installer
 - `lint.sh` - shell script syntax validation (bash -n)
