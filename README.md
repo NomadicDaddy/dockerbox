@@ -86,6 +86,7 @@ sudo bash init.sh
 - `restore-from-backup.sh` - restores `DOCKER_ROOT` from a backup archive
 - `init.sh` - local convenience script (copies config, prompts user, runs bootstrap + write-configs)
 - `install.sh` - public bootstrap installer
+- `lint.sh` - shell script syntax validation (bash -n)
 - `.gitignore` - ignores local config and logs
 
 ## Runtime layout
@@ -94,11 +95,14 @@ By default the deployed system is written under `/opt/docker`:
 
 - `compose/core/compose.yaml`
 - `appdata/portainer`
-- `appdata/homepage`
-- `appdata/caddy`
+- `appdata/homepage` (settings.yaml, widgets.yaml, services.yaml, bookmarks.yaml)
+- `appdata/caddy` (Caddyfile, data/, config/)
 - `scripts/backup-docker.sh`
 - `scripts/backup-docker-live.sh`
 - `shared/backups`
+- `shared/downloads`
+- `shared/media`
+- `stacks`
 
 ## Local DNS / hosts
 
