@@ -87,7 +87,9 @@ sudo bash init.sh
 - `init.sh` - local convenience script (copies config, prompts user, runs bootstrap + write-configs)
 - `install.sh` - public bootstrap installer
 - `lint.sh` - shell script syntax validation (bash -n)
-- `lib/common.sh` - shared functions (log, die, require_root, detect_debian, check_docker, source_config)
+- `lib/common.sh` - shared functions (log_info, log_warn, log_error, die, require_root, detect_debian, check_docker, source_config)
+- `scripts/setup-hooks.sh` - installs git pre-commit hook
+- `scripts/pre-commit` - pre-commit hook (runs lint + format check)
 - `.gitignore` - ignores local config and logs
 
 ## Runtime layout
@@ -104,6 +106,16 @@ By default the deployed system is written under `/opt/docker`:
 - `shared/downloads`
 - `shared/media`
 - `stacks`
+
+## Pre-commit hooks (optional)
+
+To get automatic linting and formatting checks before every commit:
+
+```bash
+bash scripts/setup-hooks.sh
+```
+
+The hook runs `lint.sh` (shell syntax check) and `bun run format:check` (Prettier) on every `git commit`. To skip it temporarily: `git commit --no-verify`.
 
 ## Local DNS / hosts
 

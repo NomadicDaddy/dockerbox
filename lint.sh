@@ -20,6 +20,7 @@ Options:
 This script checks:
   - All .sh files in the project root
   - All .sh files in the lib/ directory
+  - All .sh files in the scripts/ directory
   - ShellCheck static analysis (if shellcheck is installed)
 
 Examples:
@@ -31,7 +32,7 @@ HELP
 done
 
 echo "Checking *.sh syntax..."
-for f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/lib/*.sh; do
+for f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/lib/*.sh "$SCRIPT_DIR"/scripts/*.sh; do
     if [[ -f "$f" ]]; then
         echo "  Checking $(basename "$f")..."
         bash -n "$f"
@@ -43,7 +44,7 @@ echo "All shell scripts passed syntax check!"
 if command -v shellcheck >/dev/null 2>&1; then
     echo ""
     echo "Running ShellCheck..."
-    for f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/lib/*.sh; do
+    for f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/lib/*.sh "$SCRIPT_DIR"/scripts/*.sh; do
         if [[ -f "$f" ]]; then
             echo "  Checking $(basename "$f")..."
             shellcheck -x "$f"

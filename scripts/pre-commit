@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-commit hook for DockerBox.
+# Runs lint.sh (shell syntax check) and prettier format check before allowing a commit.
+# Install via: bash scripts/setup-hooks.sh
+
+# Find the repo root from the git directory
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo "Running pre-commit checks..."
+
+# 1. Shell script syntax check
+echo "  [1/2] Checking shell script syntax..."
+bash "${REPO_ROOT}/lint.sh"
+
+# 2. Prettier format check
+echo "  [2/2] Checking formatting..."
+cd "${REPO_ROOT}"
+bun run format:check
+
+echo "All pre-commit checks passed."
