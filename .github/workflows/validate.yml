@@ -5,11 +5,20 @@ on:
     pull_request:
 
 jobs:
-    shell-validation:
+    validate:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Lint and Format
-              run: bash lint.sh
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+
+            - name: Install dependencies
+              run: bun install
+
+            - name: Install shellcheck
+              run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+            - name: Run smoke:qc
+              run: bun run smoke:qc

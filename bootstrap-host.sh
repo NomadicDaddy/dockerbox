@@ -18,12 +18,24 @@ fi
 # shellcheck disable=SC1090
 source "${CONFIG_FILE}"
 
+# Apply default guards for optional config variables
+HOSTNAME_TO_SET="${HOSTNAME_TO_SET:-}"
+PRIMARY_USER="${PRIMARY_USER:-}"
+TZ="${TZ:-UTC}"
+INSTALL_TAILSCALE="${INSTALL_TAILSCALE:-false}"
+ENABLE_UFW="${ENABLE_UFW:-false}"
+ENABLE_UNATTENDED_UPGRADES="${ENABLE_UNATTENDED_UPGRADES:-false}"
+HARDEN_SSH="${HARDEN_SSH:-false}"
+DOCKER_ROOT="${DOCKER_ROOT:-/opt/docker}"
+
 if [[ -z "${PRIMARY_USER}" && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
   PRIMARY_USER="${SUDO_USER}"
 fi
 
-if [[ -z "${DOCKER_ROOT:-}" ]]; then
-  DOCKER_ROOT="/opt/docker"
+# Validate required config variables
+if [[ -z "${TZ}" ]]; then
+  echo "ERROR: TZ is required in ${CONFIG_FILE}" >&2
+  exit 1
 fi
 
 log() {

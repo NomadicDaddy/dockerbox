@@ -222,9 +222,11 @@ Working directory:
   ${INSTALL_DIR}
 
 You may want to:
-  1. Run: sudo tailscale up
-  2. Add local DNS or hosts entries
-  3. Trust Caddy's local CA:
+  1. Access Portainer within 5 minutes to create an admin account
+     (if expired: docker restart portainer)
+  2. Run: sudo tailscale up
+  3. Add local DNS or hosts entries
+  4. Trust Caddy's local CA:
      /opt/docker/appdata/caddy/data/caddy/pki/authorities/local/root.crt
 
 EOF

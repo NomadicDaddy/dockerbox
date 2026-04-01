@@ -18,8 +18,39 @@ fi
 # shellcheck disable=SC1090
 source "${CONFIG_FILE}"
 
-if [[ -z "${DOCKER_ROOT:-}" ]]; then
-  DOCKER_ROOT="/opt/docker"
+# Apply default guards for config variables
+HOST_IP="${HOST_IP:-}"
+HOSTNAME_TO_SET="${HOSTNAME_TO_SET:-}"
+PRIMARY_USER="${PRIMARY_USER:-}"
+TZ="${TZ:-UTC}"
+PORTAINER_DOMAIN="${PORTAINER_DOMAIN:-}"
+HOMEPAGE_DOMAIN="${HOMEPAGE_DOMAIN:-}"
+INSTALL_TAILSCALE="${INSTALL_TAILSCALE:-false}"
+ENABLE_UFW="${ENABLE_UFW:-false}"
+ENABLE_UNATTENDED_UPGRADES="${ENABLE_UNATTENDED_UPGRADES:-false}"
+HARDEN_SSH="${HARDEN_SSH:-false}"
+ENABLE_WATCHTOWER="${ENABLE_WATCHTOWER:-false}"
+DOCKER_ROOT="${DOCKER_ROOT:-/opt/docker}"
+BACKUP_RETAIN_DAYS="${BACKUP_RETAIN_DAYS:-14}"
+PORTAINER_IMAGE="${PORTAINER_IMAGE:-portainer/portainer-ce:2}"
+HOMEPAGE_IMAGE="${HOMEPAGE_IMAGE:-ghcr.io/gethomepage/homepage:latest}"
+WATCHTOWER_IMAGE="${WATCHTOWER_IMAGE:-containrrr/watchtower:1.7.1}"
+CADDY_IMAGE="${CADDY_IMAGE:-caddy:2}"
+
+# Validate required config variables
+missing_vars=()
+if [[ -z "${HOST_IP}" ]]; then missing_vars+=("HOST_IP"); fi
+if [[ -z "${PORTAINER_DOMAIN}" ]]; then missing_vars+=("PORTAINER_DOMAIN"); fi
+if [[ -z "${HOMEPAGE_DOMAIN}" ]]; then missing_vars+=("HOMEPAGE_DOMAIN"); fi
+if [[ -z "${DOCKER_ROOT}" ]]; then missing_vars+=("DOCKER_ROOT"); fi
+
+if [[ ${#missing_vars[@]} -gt 0 ]]; then
+  echo "ERROR: Required config variables are missing from ${CONFIG_FILE}:" >&2
+  for var in "${missing_vars[@]}"; do
+    echo "  - ${var}" >&2
+  done
+  echo "Copy config.env.example to config.env and fill in the required values." >&2
+  exit 1
 fi
 
 log() {
@@ -211,6 +242,12 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${DOCKER_ROOT}/appdata/portainer:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:9443/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     labels:
 ${portainer_labels}
 
@@ -225,6 +262,12 @@ ${portainer_labels}
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       HOMEPAGE_ALLOWED_HOSTS: "*"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     labels:
 ${homepage_labels}
 ${watchtower_service}  caddy:
@@ -238,6 +281,12 @@ ${watchtower_service}  caddy:
       - ${DOCKER_ROOT}/appdata/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ${DOCKER_ROOT}/appdata/caddy/data:/data
       - ${DOCKER_ROOT}/appdata/caddy/config:/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     labels:
 ${caddy_labels}
 COMPOSE
@@ -341,6 +390,9 @@ Set local DNS or hosts entries:
 URLs:
   https://${PORTAINER_DOMAIN}
   https://${HOMEPAGE_DOMAIN}
+
+IMPORTANT: Access Portainer within 5 minutes to create an admin account.
+  If the window expires: docker restart portainer
 
 Caddy root CA:
   ${DOCKER_ROOT}/appdata/caddy/data/caddy/pki/authorities/local/root.crt

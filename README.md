@@ -72,12 +72,19 @@ sudo tailscale up   # if enabled
 sudo bash write-configs.sh
 ```
 
+Or use the convenience wrapper:
+
+```bash
+sudo bash init.sh
+```
+
 ## Files
 
 - `config.env.example` - template config
 - `bootstrap-host.sh` - host preparation
 - `write-configs.sh` - writes generated configs, compose stack, and backup scripts
 - `restore-from-backup.sh` - restores `DOCKER_ROOT` from a backup archive
+- `init.sh` - local convenience script (copies config, prompts user, runs bootstrap + write-configs)
 - `install.sh` - public bootstrap installer
 - `.gitignore` - ignores local config and logs
 
@@ -114,6 +121,14 @@ Import this CA cert on client devices:
 /opt/docker/appdata/caddy/data/caddy/pki/authorities/local/root.crt
 ```
 
+## Post-install
+
+After the stack starts, access Portainer at `https://portainer.home` and create an admin account **within 5 minutes**. If the window expires, restart the container:
+
+```bash
+docker restart portainer
+```
+
 ## Restore
 
 After bootstrapping a fresh Debian host again:
@@ -134,6 +149,7 @@ MIT License. See [LICENSE](LICENSE).
 - `config.env` is intentionally gitignored.
 - Only Caddy publishes host ports; Portainer and Homepage stay behind the reverse proxy.
 - Do not port-forward 80/443 unless you intentionally want public exposure.
+- **HARDEN_SSH=true** disables SSH password authentication. Only enable this after confirming SSH key authentication works, otherwise you will be permanently locked out of the machine.
 
 ### Watchtower (deprecated)
 

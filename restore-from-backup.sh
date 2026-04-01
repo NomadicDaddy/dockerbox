@@ -18,9 +18,11 @@ fi
 # shellcheck disable=SC1090
 source "${CONFIG_FILE}"
 
-if [[ -z "${DOCKER_ROOT:-}" ]]; then
-  DOCKER_ROOT="/opt/docker"
-fi
+# Apply default guards for config variables
+HOST_IP="${HOST_IP:-}"
+PORTAINER_DOMAIN="${PORTAINER_DOMAIN:-}"
+HOMEPAGE_DOMAIN="${HOMEPAGE_DOMAIN:-}"
+DOCKER_ROOT="${DOCKER_ROOT:-/opt/docker}"
 
 BACKUP_ARCHIVE="${1:-}"
 
