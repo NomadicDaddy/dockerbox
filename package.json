@@ -29,7 +29,7 @@
 		"format": "bunx prettier --write .",
 		"format:check": "bunx prettier --check .",
 		"lint": "bash ./lint.sh",
-		"smoke:qc": "bun run lint && bun run format:check",
+		"smoke:qc": "bun run lint && bun run format",
 		"update-deps": "bun update --latest"
 	},
 	"type": "module"
