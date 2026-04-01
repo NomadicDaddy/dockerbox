@@ -53,6 +53,20 @@ check_args() {
   fi
 }
 
+verify_checksum() {
+  local checksum_file="${BACKUP_ARCHIVE}.sha256"
+
+  if [[ -f "${checksum_file}" ]]; then
+    log "Verifying SHA-256 checksum"
+    if ! sha256sum -c "${checksum_file}" >/dev/null 2>&1; then
+      die "SHA-256 checksum verification failed. The backup archive may be corrupted: ${BACKUP_ARCHIVE}"
+    fi
+    log "Checksum verified successfully"
+  else
+    echo "WARNING: No .sha256 checksum file found for ${BACKUP_ARCHIVE}. Skipping integrity verification." >&2
+  fi
+}
+
 check_docker() {
   command -v docker >/dev/null 2>&1 || die "Docker is not installed."
   docker version >/dev/null 2>&1 || die "Docker daemon is not available."
@@ -107,6 +121,7 @@ main() {
   check_args
   check_docker
   stop_stack
+  verify_checksum
   restore_archive
   start_stack
   print_summary

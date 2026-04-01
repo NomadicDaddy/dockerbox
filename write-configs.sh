@@ -261,7 +261,7 @@ ${portainer_labels}
       - ${DOCKER_ROOT}/appdata/homepage:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: "*"
+      HOMEPAGE_ALLOWED_HOSTS: "${HOMEPAGE_DOMAIN}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
@@ -333,8 +333,13 @@ tar \\
 ARCHIVE_SIZE="\$(du -sh "\${ARCHIVE_PATH}" | cut -f1)"
 echo "[backup] Archive created: \${ARCHIVE_PATH} (\${ARCHIVE_SIZE})"
 
+echo "[backup] Generating SHA-256 checksum..."
+sha256sum "\${ARCHIVE_PATH}" > "\${ARCHIVE_PATH}.sha256"
+echo "[backup] Checksum written: \${ARCHIVE_PATH}.sha256"
+
 echo "[backup] Pruning archives older than \${RETAIN_DAYS} days..."
 find "\${BACKUP_ROOT}" -type f -name "*.tar.gz" -mtime +\${RETAIN_DAYS} -delete
+find "\${BACKUP_ROOT}" -type f -name "*.tar.gz.sha256" -mtime +\${RETAIN_DAYS} -delete
 
 echo "[backup] Done."
 BACKUPSAFE
@@ -363,8 +368,13 @@ tar \\
 ARCHIVE_SIZE="\$(du -sh "\${ARCHIVE_PATH}" | cut -f1)"
 echo "[backup-live] Archive created: \${ARCHIVE_PATH} (\${ARCHIVE_SIZE})"
 
+echo "[backup-live] Generating SHA-256 checksum..."
+sha256sum "\${ARCHIVE_PATH}" > "\${ARCHIVE_PATH}.sha256"
+echo "[backup-live] Checksum written: \${ARCHIVE_PATH}.sha256"
+
 echo "[backup-live] Pruning archives older than \${RETAIN_DAYS} days..."
 find "\${BACKUP_ROOT}" -type f -name "*.tar.gz" -mtime +\${RETAIN_DAYS} -delete
+find "\${BACKUP_ROOT}" -type f -name "*.tar.gz.sha256" -mtime +\${RETAIN_DAYS} -delete
 
 echo "[backup-live] Done."
 BACKUPLIVE
