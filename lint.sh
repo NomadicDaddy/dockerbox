@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "Checking *.sh syntax..."
-for f in "$SCRIPT_DIR"/*.sh; do
+for f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/lib/*.sh; do
     if [[ -f "$f" ]]; then
         echo "  Checking $(basename "$f")..."
         bash -n "$f"
@@ -17,7 +17,7 @@ echo "All shell scripts passed syntax check!"
 if command -v shellcheck >/dev/null 2>&1; then
     echo ""
     echo "Running ShellCheck..."
-    for f in "$SCRIPT_DIR"/*.sh; do
+    for f in "$SCRIPT_DIR"/*.sh "$SCRIPT_DIR"/lib/*.sh; do
         if [[ -f "$f" ]]; then
             echo "  Checking $(basename "$f")..."
             shellcheck -x "$f"

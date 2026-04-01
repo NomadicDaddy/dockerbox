@@ -87,6 +87,7 @@ sudo bash init.sh
 - `init.sh` - local convenience script (copies config, prompts user, runs bootstrap + write-configs)
 - `install.sh` - public bootstrap installer
 - `lint.sh` - shell script syntax validation (bash -n)
+- `lib/common.sh` - shared functions (log, die, require_root, detect_debian, check_docker, source_config)
 - `.gitignore` - ignores local config and logs
 
 ## Runtime layout

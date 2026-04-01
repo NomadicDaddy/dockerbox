@@ -2,21 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/config.env"
-CONFIG_TEMPLATE_FILE="${SCRIPT_DIR}/config.env.example"
 
-if [[ ! -f "${CONFIG_FILE}" ]]; then
-  if [[ -f "${CONFIG_TEMPLATE_FILE}" ]]; then
-    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
-    echo "Copy config.env.example to config.env and update it for this host." >&2
-  else
-    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
-  fi
-  exit 1
-fi
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/common.sh"
 
-# shellcheck disable=SC1090
-source "${CONFIG_FILE}"
+source_config
 
 # Apply default guards for optional config variables
 HOSTNAME_TO_SET="${HOSTNAME_TO_SET:-}"
@@ -34,43 +24,8 @@ fi
 
 # Validate required config variables
 if [[ -z "${TZ}" ]]; then
-  echo "ERROR: TZ is required in ${CONFIG_FILE}" >&2
-  exit 1
+  die "TZ is required in config.env"
 fi
-
-log() {
-  echo
-  echo "==> $*"
-}
-
-warn() {
-  echo
-  echo "WARNING: $*" >&2
-}
-
-die() {
-  echo
-  echo "ERROR: $*" >&2
-  exit 1
-}
-
-require_root() {
-  if [[ "${EUID}" -ne 0 ]]; then
-    die "Please run as root: sudo bash $0"
-  fi
-}
-
-detect_debian() {
-  if [[ ! -f /etc/os-release ]]; then
-    die "Cannot detect OS."
-  fi
-
-  . /etc/os-release
-
-  if [[ "${ID:-}" != "debian" ]]; then
-    die "This script currently supports Debian only."
-  fi
-}
 
 check_primary_user() {
   if [[ -z "${PRIMARY_USER}" ]]; then

@@ -2,21 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/config.env"
-CONFIG_TEMPLATE_FILE="${SCRIPT_DIR}/config.env.example"
 
-if [[ ! -f "${CONFIG_FILE}" ]]; then
-  if [[ -f "${CONFIG_TEMPLATE_FILE}" ]]; then
-    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
-    echo "Copy config.env.example to config.env and update it for this host." >&2
-  else
-    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
-  fi
-  exit 1
-fi
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/common.sh"
 
-# shellcheck disable=SC1090
-source "${CONFIG_FILE}"
+source_config
 
 # Apply default guards for config variables
 HOST_IP="${HOST_IP:-}"
@@ -45,35 +35,13 @@ if [[ -z "${HOMEPAGE_DOMAIN}" ]]; then missing_vars+=("HOMEPAGE_DOMAIN"); fi
 if [[ -z "${DOCKER_ROOT}" ]]; then missing_vars+=("DOCKER_ROOT"); fi
 
 if [[ ${#missing_vars[@]} -gt 0 ]]; then
-  echo "ERROR: Required config variables are missing from ${CONFIG_FILE}:" >&2
+  echo "ERROR: Required config variables are missing from config.env:" >&2
   for var in "${missing_vars[@]}"; do
     echo "  - ${var}" >&2
   done
   echo "Copy config.env.example to config.env and fill in the required values." >&2
   exit 1
 fi
-
-log() {
-  echo
-  echo "==> $*"
-}
-
-die() {
-  echo
-  echo "ERROR: $*" >&2
-  exit 1
-}
-
-require_root() {
-  if [[ "${EUID}" -ne 0 ]]; then
-    die "Please run as root: sudo bash $0"
-  fi
-}
-
-check_docker() {
-  command -v docker >/dev/null 2>&1 || die "Docker is not installed."
-  docker version >/dev/null 2>&1 || die "Docker daemon is not available."
-}
 
 check_directories() {
   [[ -d "${DOCKER_ROOT}" ]] || die "${DOCKER_ROOT} does not exist."

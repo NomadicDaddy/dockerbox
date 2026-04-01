@@ -2,21 +2,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/config.env"
-CONFIG_TEMPLATE_FILE="${SCRIPT_DIR}/config.env.example"
 
-if [[ ! -f "${CONFIG_FILE}" ]]; then
-  if [[ -f "${CONFIG_TEMPLATE_FILE}" ]]; then
-    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
-    echo "Copy config.env.example to config.env and update it for this host." >&2
-  else
-    echo "ERROR: config.env not found at ${CONFIG_FILE}" >&2
-  fi
-  exit 1
-fi
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/common.sh"
 
-# shellcheck disable=SC1090
-source "${CONFIG_FILE}"
+source_config
 
 # Apply default guards for config variables
 HOST_IP="${HOST_IP:-}"
@@ -25,23 +15,6 @@ HOMEPAGE_DOMAIN="${HOMEPAGE_DOMAIN:-}"
 DOCKER_ROOT="${DOCKER_ROOT:-/opt/docker}"
 
 BACKUP_ARCHIVE="${1:-}"
-
-log() {
-  echo
-  echo "==> $*"
-}
-
-die() {
-  echo
-  echo "ERROR: $*" >&2
-  exit 1
-}
-
-require_root() {
-  if [[ "${EUID}" -ne 0 ]]; then
-    die "Please run as root: sudo bash $0 /path/to/backup.tar.gz"
-  fi
-}
 
 check_args() {
   if [[ -z "${BACKUP_ARCHIVE}" ]]; then
@@ -65,11 +38,6 @@ verify_checksum() {
   else
     echo "WARNING: No .sha256 checksum file found for ${BACKUP_ARCHIVE}. Skipping integrity verification." >&2
   fi
-}
-
-check_docker() {
-  command -v docker >/dev/null 2>&1 || die "Docker is not installed."
-  docker version >/dev/null 2>&1 || die "Docker daemon is not available."
 }
 
 stop_stack() {
