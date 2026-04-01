@@ -76,11 +76,11 @@ if [[ -z "${HOMEPAGE_DOMAIN}" ]]; then missing_vars+=("HOMEPAGE_DOMAIN"); fi
 if [[ -z "${DOCKER_ROOT}" ]]; then missing_vars+=("DOCKER_ROOT"); fi
 
 if [[ ${#missing_vars[@]} -gt 0 ]]; then
-  echo "ERROR: Required config variables are missing from config.env:" >&2
+  log_error "Required config variables are missing from config.env:"
   for var in "${missing_vars[@]}"; do
-    echo "  - ${var}" >&2
+    log_error "  - ${var}"
   done
-  echo "Copy config.env.example to config.env and fill in the required values." >&2
+  log_error "Copy config.env.example to config.env and fill in the required values."
   exit 1
 fi
 
@@ -89,7 +89,7 @@ check_directories() {
 }
 
 write_caddyfile() {
-  log "Writing Caddyfile"
+  log_info "Writing Caddyfile"
   cat > "${DOCKER_ROOT}/appdata/caddy/Caddyfile" <<CADDYFILE
 {
   local_certs
@@ -130,7 +130,7 @@ CADDYFILE
 }
 
 write_homepage_files() {
-  log "Writing Homepage config"
+  log_info "Writing Homepage config"
 
   cat > "${DOCKER_ROOT}/appdata/homepage/settings.yaml" <<'SETTINGS'
 title: Docker Host
@@ -201,7 +201,7 @@ BOOKMARKS
 }
 
 write_compose_file() {
-  log "Writing compose.yaml"
+  log_info "Writing compose.yaml"
 
   local watchtower_service=""
   local portainer_labels="      - homepage.group=Management
@@ -302,7 +302,7 @@ COMPOSE
 }
 
 write_backup_scripts() {
-  log "Writing backup scripts"
+  log_info "Writing backup scripts"
 
   cat > "${DOCKER_ROOT}/scripts/backup-docker.sh" <<BACKUPSAFE
 #!/usr/bin/env bash
@@ -393,11 +393,11 @@ BACKUPLIVE
 
 start_stack() {
   if [[ "${DRY_RUN}" == "true" ]]; then
-    log "Dry run: skipping stack start"
+    log_info "Dry run: skipping stack start"
     return
   fi
 
-  log "Starting stack"
+  log_info "Starting stack"
   docker compose -f "${DOCKER_ROOT}/compose/core/compose.yaml" up -d
 }
 

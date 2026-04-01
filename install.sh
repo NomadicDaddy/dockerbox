@@ -15,19 +15,32 @@ if [[ -f "${SCRIPT_DIR}/VERSION" ]]; then
   DOCKERBOX_VERSION="$(tr -d '[:space:]' < "${SCRIPT_DIR}/VERSION")"
 fi
 
+_timestamp() {
+  date '+%Y-%m-%d %H:%M:%S'
+}
+
+log_info() {
+  echo "[$(_timestamp)] [INFO] $*"
+}
+
+log_warn() {
+  echo "[$(_timestamp)] [WARN] $*" >&2
+}
+
+log_error() {
+  echo "[$(_timestamp)] [ERROR] $*" >&2
+}
+
 log() {
-  echo
-  echo "==> $*"
+  log_info "$@"
 }
 
 warn() {
-  echo
-  echo "WARNING: $*" >&2
+  log_warn "$@"
 }
 
 die() {
-  echo
-  echo "ERROR: $*" >&2
+  log_error "$*"
   exit 1
 }
 
@@ -87,7 +100,7 @@ HELP
 }
 
 install_minimum_tools() {
-  log "Installing minimum tools"
+  log_info "Installing minimum tools"
   apt update
   apt install -y ca-certificates curl tar
 }
@@ -97,7 +110,7 @@ download_repo() {
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "${tmp_dir}"' EXIT
 
-  log "Downloading ${REPO_SLUG}@${BRANCH}"
+  log_info "Downloading ${REPO_SLUG}@${BRANCH}"
   curl -fsSL "${ARCHIVE_URL}" -o "${tmp_dir}/repo.tar.gz" || \
     die "Failed to download ${ARCHIVE_URL}. Set REPO_SLUG and BRANCH to published values."
 
@@ -167,7 +180,7 @@ interactive_config() {
   local portainer_domain homepage_domain
   local install_tailscale enable_ufw enable_unattended_upgrades harden_ssh enable_watchtower
 
-  log "Interactive configuration"
+  log_info "Interactive configuration"
 
   host_ip="$(prompt_value "Host IP" "192.168.1.15")"
   hostname_to_set="$(prompt_value "Hostname to set (blank to skip)" "")"
@@ -244,14 +257,14 @@ apply_env_overrides() {
 run_setup() {
   cd "${INSTALL_DIR}"
 
-  log "Running bootstrap-host.sh"
+  log_info "Running bootstrap-host.sh"
   bash ./bootstrap-host.sh
 
   if grep -q '^INSTALL_TAILSCALE="true"$' config.env; then
-    warn "If desired, run 'sudo tailscale up' after install."
+    log_warn "If desired, run 'sudo tailscale up' after install."
   fi
 
-  log "Running write-configs.sh"
+  log_info "Running write-configs.sh"
   bash ./write-configs.sh
 }
 
@@ -291,7 +304,7 @@ main() {
   ensure_config_file
 
   if [[ -n "${NONINTERACTIVE:-}" ]]; then
-    log "Using noninteractive mode with environment overrides"
+    log_info "Using noninteractive mode with environment overrides"
   else
     interactive_config
   fi

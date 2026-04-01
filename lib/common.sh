@@ -3,19 +3,33 @@
 # Source this file from any script in the repo root:
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
+_timestamp() {
+	date '+%Y-%m-%d %H:%M:%S'
+}
+
+log_info() {
+	echo "[$(_timestamp)] [INFO] $*"
+}
+
+log_warn() {
+	echo "[$(_timestamp)] [WARN] $*" >&2
+}
+
+log_error() {
+	echo "[$(_timestamp)] [ERROR] $*" >&2
+}
+
+# Legacy aliases — prefer log_info / log_warn
 log() {
-	echo
-	echo "==> $*"
+	log_info "$@"
 }
 
 warn() {
-	echo
-	echo "WARNING: $*" >&2
+	log_warn "$@"
 }
 
 die() {
-	echo
-	echo "ERROR: $*" >&2
+	log_error "$*"
 	exit 1
 }
 
@@ -51,10 +65,10 @@ source_config() {
 
 	if [[ ! -f "${config_file}" ]]; then
 		if [[ -f "${config_template}" ]]; then
-			echo "ERROR: config.env not found at ${config_file}" >&2
-			echo "Copy config.env.example to config.env and update it for this host." >&2
+			log_error "config.env not found at ${config_file}"
+			log_error "Copy config.env.example to config.env and update it for this host."
 		else
-			echo "ERROR: config.env not found at ${config_file}" >&2
+			log_error "config.env not found at ${config_file}"
 		fi
 		exit 1
 	fi

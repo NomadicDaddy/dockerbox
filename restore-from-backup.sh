@@ -64,26 +64,26 @@ verify_checksum() {
   local checksum_file="${BACKUP_ARCHIVE}.sha256"
 
   if [[ -f "${checksum_file}" ]]; then
-    log "Verifying SHA-256 checksum"
+    log_info "Verifying SHA-256 checksum"
     if ! sha256sum -c "${checksum_file}" >/dev/null 2>&1; then
       die "SHA-256 checksum verification failed. The backup archive may be corrupted: ${BACKUP_ARCHIVE}"
     fi
-    log "Checksum verified successfully"
+    log_info "Checksum verified successfully"
   else
-    echo "WARNING: No .sha256 checksum file found for ${BACKUP_ARCHIVE}. Skipping integrity verification." >&2
+    log_warn "No .sha256 checksum file found for ${BACKUP_ARCHIVE}. Skipping integrity verification."
   fi
 }
 
 stop_stack() {
   local compose_file="${DOCKER_ROOT}/compose/core/compose.yaml"
   if [[ -f "${compose_file}" ]]; then
-    log "Stopping existing stack before restore"
+    log_info "Stopping existing stack before restore"
     docker compose -f "${compose_file}" stop || true
   fi
 }
 
 restore_archive() {
-  log "Restoring archive ${BACKUP_ARCHIVE}"
+  log_info "Restoring archive ${BACKUP_ARCHIVE}"
   mkdir -p "$(dirname "${DOCKER_ROOT}")"
   tar -xzf "${BACKUP_ARCHIVE}" -C "$(dirname "${DOCKER_ROOT}")"
 }
@@ -93,7 +93,7 @@ start_stack() {
     die "compose.yaml not found after restore."
   fi
 
-  log "Starting restored stack"
+  log_info "Starting restored stack"
   docker compose -f "${DOCKER_ROOT}/compose/core/compose.yaml" up -d
 }
 

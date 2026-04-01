@@ -63,7 +63,7 @@ fi
 
 check_primary_user() {
   if [[ -z "${PRIMARY_USER}" ]]; then
-    warn "PRIMARY_USER is empty. Docker group membership will not be set."
+    log_warn "PRIMARY_USER is empty. Docker group membership will not be set."
     return
   fi
 
@@ -74,13 +74,13 @@ check_primary_user() {
 
 set_hostname_if_requested() {
   if [[ -n "${HOSTNAME_TO_SET}" ]]; then
-    log "Setting hostname to ${HOSTNAME_TO_SET}"
+    log_info "Setting hostname to ${HOSTNAME_TO_SET}"
     hostnamectl set-hostname "${HOSTNAME_TO_SET}"
   fi
 }
 
 install_base_packages() {
-  log "Installing base packages (skipping already-installed)"
+  log_info "Installing base packages (skipping already-installed)"
   apt update
   apt upgrade -y
 
@@ -95,22 +95,22 @@ install_base_packages() {
   if [[ ${#packages_to_install[@]} -gt 0 ]]; then
     apt install -y "${packages_to_install[@]}"
   else
-    log "All base packages already installed"
+    log_info "All base packages already installed"
   fi
 }
 
 set_timezone() {
-  log "Setting timezone to ${TZ}"
+  log_info "Setting timezone to ${TZ}"
   timedatectl set-timezone "${TZ}" || true
 }
 
 install_docker() {
   if command -v docker >/dev/null 2>&1; then
-    log "Docker already installed ($(docker --version 2>/dev/null || echo 'unknown version')), skipping installation"
+    log_info "Docker already installed ($(docker --version 2>/dev/null || echo 'unknown version')), skipping installation"
     return
   fi
 
-  log "Installing Docker"
+  log_info "Installing Docker"
   install -m 0755 -d /etc/apt/keyrings
 
   if [[ ! -f /etc/apt/keyrings/docker.gpg ]]; then
@@ -139,7 +139,7 @@ DOCKERLIST
 }
 
 configure_docker_daemon() {
-  log "Configuring Docker daemon"
+  log_info "Configuring Docker daemon"
   install -m 0755 -d /etc/docker
 
   cat > /etc/docker/daemon.json <<'DOCKERDAEMON'
@@ -158,7 +158,7 @@ DOCKERDAEMON
 
 add_user_to_docker_group() {
   if [[ -n "${PRIMARY_USER}" ]]; then
-    log "Adding ${PRIMARY_USER} to docker group"
+    log_info "Adding ${PRIMARY_USER} to docker group"
     usermod -aG docker "${PRIMARY_USER}"
   fi
 }
@@ -168,7 +168,7 @@ configure_unattended_upgrades() {
     return
   fi
 
-  log "Enabling unattended upgrades"
+  log_info "Enabling unattended upgrades"
   dpkg-reconfigure -f noninteractive unattended-upgrades || true
 }
 
@@ -178,11 +178,11 @@ install_tailscale() {
   fi
 
   if command -v tailscale >/dev/null 2>&1; then
-    log "Tailscale already installed ($(tailscale version 2>/dev/null | head -1 || echo 'unknown')), skipping"
+    log_info "Tailscale already installed ($(tailscale version 2>/dev/null | head -1 || echo 'unknown')), skipping"
     return
   fi
 
-  log "Installing Tailscale"
+  log_info "Installing Tailscale"
   curl -fsSL https://tailscale.com/install.sh | sh
 }
 
@@ -191,7 +191,7 @@ configure_ufw() {
     return
   fi
 
-  log "Configuring UFW"
+  log_info "Configuring UFW"
   ufw default deny incoming
   ufw default allow outgoing
   ufw allow 22/tcp
@@ -207,8 +207,8 @@ harden_ssh_if_requested() {
     return
   fi
 
-  warn "Only enable HARDEN_SSH if SSH key auth is confirmed working."
-  log "Hardening SSH"
+  log_warn "Only enable HARDEN_SSH if SSH key auth is confirmed working."
+  log_info "Hardening SSH"
 
   local sshd_config="/etc/ssh/sshd_config"
   cp "${sshd_config}" "${sshd_config}.bak.$(date +%Y%m%d%H%M%S)"
@@ -231,7 +231,7 @@ harden_ssh_if_requested() {
 }
 
 create_directories() {
-  log "Creating directory structure"
+  log_info "Creating directory structure"
   mkdir -p "${DOCKER_ROOT}/compose/core"
   mkdir -p "${DOCKER_ROOT}/appdata/portainer"
   mkdir -p "${DOCKER_ROOT}/appdata/homepage"
