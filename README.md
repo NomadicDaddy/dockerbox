@@ -26,7 +26,18 @@ apt update && apt install -y curl
 sudo bash <(curl -fsSL https://raw.githubusercontent.com/NomadicDaddy/dockerbox/main/install.sh)
 ```
 
+For a pinned release, pass `RELEASE_REF` as a tag, branch, or commit:
+
+```bash
+apt update && apt install -y curl
+sudo env RELEASE_REF="v1.0.0" bash <(curl -fsSL https://raw.githubusercontent.com/NomadicDaddy/dockerbox/v1.0.0/install.sh)
+```
+
 Pass `REPO_SLUG=yourname/dockerbox` to override the default repo slug.
+
+If you are testing unpublished local changes, run the scripts from your local checkout instead of the GitHub raw URL.
+
+If `INSTALL_DIR` already exists and is non-empty, `install.sh` now refuses to replace it unless you explicitly set `OVERWRITE_INSTALL_DIR=true`.
 
 ## Interactive install
 
@@ -50,6 +61,7 @@ You can also pass values via environment variables:
 ```bash
 apt update && apt install -y curl
 REPO_SLUG="NomadicDaddy/dockerbox" \
+RELEASE_REF="v1.0.0" \
 NONINTERACTIVE=1 \
 HOST_IP="192.168.1.15" \
 PRIMARY_USER="youruser" \
@@ -57,7 +69,7 @@ PORTAINER_DOMAIN="portainer.home" \
 HOMEPAGE_DOMAIN="dash.home" \
 INSTALL_TAILSCALE="true" \
 ENABLE_WATCHTOWER="true" \
-sudo bash <(curl -fsSL https://raw.githubusercontent.com/NomadicDaddy/dockerbox/main/install.sh)
+sudo bash <(curl -fsSL https://raw.githubusercontent.com/NomadicDaddy/dockerbox/v1.0.0/install.sh)
 ```
 
 ## Existing local/manual flow
@@ -156,6 +168,8 @@ cp config.env.example config.env
 nano config.env
 sudo bash restore-from-backup.sh /path/to/backup.tar.gz
 ```
+
+`restore-from-backup.sh` replaces the current `DOCKER_ROOT` with the archive contents. If the restore fails after the old stack is stopped, it rolls back to the previous `DOCKER_ROOT` and attempts to restart the original stack.
 
 ## Testing strategy
 

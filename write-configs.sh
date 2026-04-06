@@ -343,7 +343,10 @@ ARCHIVE_SIZE="\$(du -sh "\${ARCHIVE_PATH}" | cut -f1)"
 echo "[backup] Archive created: \${ARCHIVE_PATH} (\${ARCHIVE_SIZE})"
 
 echo "[backup] Generating SHA-256 checksum..."
-sha256sum "\${ARCHIVE_PATH}" > "\${ARCHIVE_PATH}.sha256"
+(
+  cd "\${BACKUP_ROOT}"
+  sha256sum "\${ARCHIVE_NAME}" > "\${ARCHIVE_NAME}.sha256"
+)
 echo "[backup] Checksum written: \${ARCHIVE_PATH}.sha256"
 
 echo "[backup] Pruning archives older than \${RETAIN_DAYS} days..."
@@ -378,7 +381,10 @@ ARCHIVE_SIZE="\$(du -sh "\${ARCHIVE_PATH}" | cut -f1)"
 echo "[backup-live] Archive created: \${ARCHIVE_PATH} (\${ARCHIVE_SIZE})"
 
 echo "[backup-live] Generating SHA-256 checksum..."
-sha256sum "\${ARCHIVE_PATH}" > "\${ARCHIVE_PATH}.sha256"
+(
+  cd "\${BACKUP_ROOT}"
+  sha256sum "\${ARCHIVE_NAME}" > "\${ARCHIVE_NAME}.sha256"
+)
 echo "[backup-live] Checksum written: \${ARCHIVE_PATH}.sha256"
 
 echo "[backup-live] Pruning archives older than \${RETAIN_DAYS} days..."

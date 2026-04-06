@@ -2,11 +2,12 @@
 set -euo pipefail
 
 REPO_SLUG="${REPO_SLUG:-NomadicDaddy/dockerbox}"
-BRANCH="${BRANCH:-main}"
+RELEASE_REF="${RELEASE_REF:-${BRANCH:-main}}"
+OVERWRITE_INSTALL_DIR="${OVERWRITE_INSTALL_DIR:-false}"
 DEFAULT_INSTALL_USER="${SUDO_USER:-${USER}}"
 DEFAULT_INSTALL_HOME="$(eval echo "~${DEFAULT_INSTALL_USER}")"
 INSTALL_DIR="${INSTALL_DIR:-${DEFAULT_INSTALL_HOME}/dockerbox}"
-ARCHIVE_URL="https://codeload.github.com/${REPO_SLUG}/tar.gz/refs/heads/${BRANCH}"
+ARCHIVE_URL="https://codeload.github.com/${REPO_SLUG}/tar.gz/${RELEASE_REF}"
 
 # Read version from VERSION file if available
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -76,8 +77,10 @@ Options:
 Environment variables (non-interactive mode):
   NONINTERACTIVE=1    Skip interactive prompts (all values must be set)
   REPO_SLUG           GitHub repo slug (default: NomadicDaddy/dockerbox)
-  BRANCH              Git branch (default: main)
+  RELEASE_REF         Git ref to download (tag, branch, or commit; default: main)
+  BRANCH              Backward-compatible alias for RELEASE_REF
   INSTALL_DIR         Local install directory (default: ~/dockerbox)
+  OVERWRITE_INSTALL_DIR Overwrite an existing non-empty INSTALL_DIR (true/false)
   HOST_IP             Host IP address
   PORTAINER_DOMAIN    Portainer domain name
   HOMEPAGE_DOMAIN     Homepage dashboard domain name
@@ -105,23 +108,53 @@ install_minimum_tools() {
   apt install -y ca-certificates curl tar
 }
 
+prepare_install_dir() {
+  [[ -n "${INSTALL_DIR}" ]] || die "INSTALL_DIR must not be empty."
+
+  case "${INSTALL_DIR}" in
+    /)
+      die "Refusing to use / as INSTALL_DIR."
+      ;;
+  esac
+
+  if [[ -e "${INSTALL_DIR}" && ! -d "${INSTALL_DIR}" ]]; then
+    die "INSTALL_DIR exists but is not a directory: ${INSTALL_DIR}"
+  fi
+
+  if [[ -d "${INSTALL_DIR}" ]]; then
+    if [[ -n "$(find "${INSTALL_DIR}" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]]; then
+      if [[ "${OVERWRITE_INSTALL_DIR}" != "true" ]]; then
+        die "INSTALL_DIR already exists and is not empty: ${INSTALL_DIR}. Re-run with OVERWRITE_INSTALL_DIR=true to replace it."
+      fi
+
+      log_warn "Removing existing INSTALL_DIR because OVERWRITE_INSTALL_DIR=true: ${INSTALL_DIR}"
+      rm -rf "${INSTALL_DIR}"
+      return
+    fi
+
+    rmdir "${INSTALL_DIR}"
+  fi
+}
+
 download_repo() {
   local tmp_dir
+  local repo_name
+  local extracted_dir
   tmp_dir="$(mktemp -d)"
   trap 'rm -rf "${tmp_dir}"' EXIT
 
-  log_info "Downloading ${REPO_SLUG}@${BRANCH}"
+  log_info "Downloading ${REPO_SLUG}@${RELEASE_REF}"
   curl -fsSL "${ARCHIVE_URL}" -o "${tmp_dir}/repo.tar.gz" || \
-    die "Failed to download ${ARCHIVE_URL}. Set REPO_SLUG and BRANCH to published values."
+    die "Failed to download ${ARCHIVE_URL}. Set REPO_SLUG and RELEASE_REF to published values."
 
   tar -xzf "${tmp_dir}/repo.tar.gz" -C "${tmp_dir}"
 
-  local extracted_dir
-  extracted_dir="${tmp_dir}/$(basename "${REPO_SLUG}")-${BRANCH}"
+  repo_name="$(basename "${REPO_SLUG}")"
+  extracted_dir="$(find "${tmp_dir}" -mindepth 1 -maxdepth 1 -type d -name "${repo_name}-*" | head -n 1)"
   [[ -d "${extracted_dir}" ]] || die "Downloaded archive did not unpack as expected."
 
+  prepare_install_dir
   mkdir -p "$(dirname "${INSTALL_DIR}")"
-  rm -rf "${INSTALL_DIR}"
   mv "${extracted_dir}" "${INSTALL_DIR}"
 
   rm -rf "${tmp_dir}"
