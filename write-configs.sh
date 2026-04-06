@@ -245,6 +245,7 @@ services:
   portainer:
     image: ${PORTAINER_IMAGE}
     container_name: portainer
+    command: --trusted-origins ${PORTAINER_DOMAIN}
     restart: unless-stopped
     expose:
       - "9443"
