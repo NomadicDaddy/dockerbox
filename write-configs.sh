@@ -173,14 +173,14 @@ WIDGETS
         href: https://${PORTAINER_DOMAIN}
         description: Docker management UI
         icon: portainer.png
-        siteMonitor: https://${PORTAINER_DOMAIN}
+        siteMonitor: https://portainer:9443
 
 - System:
     - Homepage:
         href: https://${HOMEPAGE_DOMAIN}
         description: Main dashboard
         icon: homepage.png
-        siteMonitor: https://${HOMEPAGE_DOMAIN}
+        siteMonitor: http://homepage:3000
 SERVICES
 
   cat > "${DOCKER_ROOT}/appdata/homepage/bookmarks.yaml" <<'BOOKMARKS'
