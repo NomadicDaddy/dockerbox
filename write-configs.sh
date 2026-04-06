@@ -30,7 +30,7 @@ Configuration:
     DOCKER_ROOT         Docker data root (default: /opt/docker)
 
   Optional variables:
-    PORTAINER_IMAGE     Portainer Docker image (default: portainer/portainer-ce:2)
+    PORTAINER_IMAGE     Portainer Docker image (default: portainer/portainer-ce:2.40.0)
     HOMEPAGE_IMAGE      Homepage Docker image (default: ghcr.io/gethomepage/homepage:latest)
     WATCHTOWER_IMAGE    Watchtower Docker image (default: containrrr/watchtower:1.7.1)
     CADDY_IMAGE         Caddy Docker image (default: caddy:2)
@@ -63,7 +63,7 @@ HARDEN_SSH="${HARDEN_SSH:-false}"
 ENABLE_WATCHTOWER="${ENABLE_WATCHTOWER:-false}"
 DOCKER_ROOT="${DOCKER_ROOT:-/opt/docker}"
 BACKUP_RETAIN_DAYS="${BACKUP_RETAIN_DAYS:-14}"
-PORTAINER_IMAGE="${PORTAINER_IMAGE:-portainer/portainer-ce:2}"
+PORTAINER_IMAGE="${PORTAINER_IMAGE:-portainer/portainer-ce:2.40.0}"
 HOMEPAGE_IMAGE="${HOMEPAGE_IMAGE:-ghcr.io/gethomepage/homepage:latest}"
 WATCHTOWER_IMAGE="${WATCHTOWER_IMAGE:-containrrr/watchtower:1.7.1}"
 CADDY_IMAGE="${CADDY_IMAGE:-caddy:2}"
